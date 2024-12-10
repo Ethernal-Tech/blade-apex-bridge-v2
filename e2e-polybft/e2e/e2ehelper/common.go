@@ -38,13 +38,11 @@ func getAllDestionationChains(chains []string, chainsDst map[string][]string) (r
 
 	for _, srcChain := range chains {
 		for _, dstChain := range chainsDst[srcChain] {
-			if mp[dstChain] {
-				continue
+			if !mp[dstChain] {
+				mp[dstChain] = true
+
+				res = append(res, dstChain)
 			}
-
-			mp[dstChain] = true
-
-			res = append(res, dstChain)
 		}
 	}
 
