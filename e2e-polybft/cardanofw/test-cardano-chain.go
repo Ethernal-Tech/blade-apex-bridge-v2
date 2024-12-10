@@ -293,21 +293,15 @@ func (ec *TestCardanoChain) GetAddressBalance(ctx context.Context, addr string) 
 }
 
 func (ec *TestCardanoChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int,
+	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
 ) (string, error) {
-	const (
-		feeAmount              = uint64(1_100_000)
-		waitForTxNumRetries    = 60
-		waitForTxRetryWaitTime = time.Second * 2
-	)
-
 	privateKeyBytes, err := hex.DecodeString(privateKey)
 	if err != nil {
 		return "", err
 	}
 
 	verificationKeys := infrawallet.GetVerificationKeyFromSigningKey(privateKeyBytes)
-	totalAmount := new(big.Int).SetUint64(feeAmount)
+	totalAmount := new(big.Int).Set(feeAmount)
 	receiversMap := make(map[string]uint64, len(receivers))
 
 	for addr, amount := range receivers {
@@ -321,7 +315,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	}
 
 	bridgingRequestMetadata, err := CreateCardanoBridgingMetaData(
-		senderAddr.String(), receiversMap, destChainID, feeAmount)
+		senderAddr.String(), receiversMap, destChainID, feeAmount.Uint64())
 	if err != nil {
 		return "", err
 	}
