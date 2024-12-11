@@ -1495,7 +1495,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 			bridgeTransactions(ctx, apex, []*bridingRequest{request}, receivers)
 
 			require.NoError(t, apex.DefundHotWallet(
-				request.dest, defundReceiver.GetAddress(request.dest), apexDefundAndFundAmount))
+				request.dest, defundReceiver.GetAddress(request.dest), cardanofw.ApexToDfm(apexDefundAndFundAmount)))
 		}
 
 		fmt.Printf("Confirming that bridging requests will not be processed\n")

@@ -415,14 +415,14 @@ func (a *ApexSystem) GetBalance(
 
 func (a *ApexSystem) WaitForGreaterAmount(
 	ctx context.Context, user *TestApexUser, chain ChainID,
-	expectedAmountDFM *big.Int, numRetries int, waitTime time.Duration,
+	expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
 ) error {
 	lastAmount, err := a.WaitForAmount(ctx, user, chain, func(val *big.Int) bool {
-		return val.Cmp(expectedAmountDFM) == 1
+		return val.Cmp(expectedAmountDfm) == 1
 	}, numRetries, waitTime)
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
-			expectedAmountDFM, lastAmount, err)
+			expectedAmountDfm, lastAmount, err)
 	}
 
 	return nil
@@ -430,17 +430,17 @@ func (a *ApexSystem) WaitForGreaterAmount(
 
 func (a *ApexSystem) WaitForExactAmount(
 	ctx context.Context, user *TestApexUser, chain ChainID,
-	expectedAmountDFM *big.Int, numRetries int, waitTime time.Duration,
+	expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
 ) error {
 	lastAmount, err := a.WaitForAmount(ctx, user, chain, func(val *big.Int) bool {
-		return val.Cmp(expectedAmountDFM) >= 0
+		return val.Cmp(expectedAmountDfm) >= 0
 	}, numRetries, waitTime)
 	if err != nil {
 		return fmt.Errorf("amount mismatch: expected %s, but received %s: %w",
-			expectedAmountDFM, lastAmount, err)
-	} else if lastAmount.Cmp(expectedAmountDFM) > 0 {
+			expectedAmountDfm, lastAmount, err)
+	} else if lastAmount.Cmp(expectedAmountDfm) > 0 {
 		return fmt.Errorf("amount mismatch: received amount %s is greater than expected %s",
-			lastAmount, expectedAmountDFM)
+			lastAmount, expectedAmountDfm)
 	}
 
 	return nil

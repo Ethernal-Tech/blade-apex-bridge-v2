@@ -116,7 +116,7 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		return err
 	}
 
-	fmt.Printf("Waiting for sockets to be ready\n")
+	fmt.Printf("Waiting for sockets to be ready %s (%d)\n", networkName, ec.config.ID)
 
 	ec.cluster = cluster // at this point in time cluster has already been created
 

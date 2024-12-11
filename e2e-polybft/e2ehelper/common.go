@@ -17,11 +17,11 @@ type IApexSystem interface {
 	) string
 	WaitForGreaterAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
-		expectedAmountDFM *big.Int, numRetries int, waitTime time.Duration,
+		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
 	) error
 	WaitForExactAmount(
 		ctx context.Context, user *cardanofw.TestApexUser, chain cardanofw.ChainID,
-		expectedAmountDFM *big.Int, numRetries int, waitTime time.Duration,
+		expectedAmountDfm *big.Int, numRetries int, waitTime time.Duration,
 	) error
 	SubmitTx(
 		ctx context.Context, sourceChain cardanofw.ChainID, sender *cardanofw.TestApexUser,
