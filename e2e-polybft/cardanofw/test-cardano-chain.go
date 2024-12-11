@@ -132,7 +132,7 @@ func (ec *TestCardanoChain) RunChain(t *testing.T) error {
 		return err
 	}
 
-	fmt.Printf("Cluster %d is ready\n", ec.config.ID)
+	fmt.Printf("Cluster %s (%d) is ready\n", networkName, ec.config.ID)
 
 	return nil
 }
