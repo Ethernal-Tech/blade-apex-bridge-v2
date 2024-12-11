@@ -671,14 +671,13 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 	t.Run("Submitted invalid metadata - empty tx", func(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 		feeAmount := uint64(1_100_000)
-		transactions := make([]cardanofw.BridgingRequestMetadataTransaction, 0)
 
 		metadata := map[string]interface{}{
 			"1": map[string]interface{}{
 				"t":  "bridge",
 				"d":  cardanofw.ChainIDVector,
 				"s":  cardanofw.SplitString(user.GetAddress(cardanofw.ChainIDPrime), 40),
-				"tx": transactions, // should not be empty
+				"tx": []cardanofw.BridgingRequestMetadataTransaction{}, // should not be empty
 				"fa": feeAmount,
 			},
 		}
@@ -1127,7 +1126,7 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 					defundReceiversExpectedAmount[key] = big.NewInt(0)
 				}
 
-				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], defundAmount)
+				defundReceiversExpectedAmount[key].Add(defundReceiversExpectedAmount[key], cardanofw.ApexToDfm(defundAmount))
 
 				if _, exists := defundReceivers[key]; !exists {
 					defundReceivers[key] = defundReceiver
@@ -1213,11 +1212,13 @@ func TestE2E_ApexBridge_Fund_Defund(t *testing.T) {
 
 	defundWallets := func(
 		ctx context.Context, apex *cardanofw.ApexSystem,
-		defundReceiver *cardanofw.TestApexUser, defundAmount *big.Int,
+		defundReceiver *cardanofw.TestApexUser, defundAmountApex *big.Int,
 		defundReceiverPrevAmounts map[chainStageKey]*big.Int, defundReceiverExpectedAmounts map[chainStageKey]*big.Int,
 		defundReceivers map[chainStageKey]*cardanofw.TestApexUser,
 	) {
 		fmt.Printf("Defunding hot wallets\n")
+
+		defundAmount := cardanofw.ApexToDfm(defundAmountApex)
 
 		require.NoError(t, apex.DefundHotWallet(
 			cardanofw.ChainIDPrime, defundReceiver.GetAddress(cardanofw.ChainIDPrime), defundAmount))

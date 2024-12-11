@@ -537,7 +537,7 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 	ctx, cncl := context.WithCancel(context.Background())
 	defer cncl()
 
-	const premineAmount = uint64(10_000_000)
+	const premineAmount = uint64(50_000_000)
 
 	primeConfig := cardanofw.NewPrimeChainConfig()
 	primeConfig.PremineAmount = premineAmount
@@ -713,14 +713,12 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		sendAmountDfm := cardanofw.WeiToDfm(ethgo.Ether(1))
 		feeAmount := uint64(1_100_000)
 
-		var transactions = make([]cardanofw.BridgingRequestMetadataTransaction, 0)
-
 		metadata := map[string]interface{}{
 			"1": map[string]interface{}{
 				"t":  "bridge",
 				"d":  dstChain,
 				"s":  cardanofw.SplitString(user.GetAddress(srcChain), 40),
-				"tx": transactions, // should not be empty
+				"tx": []cardanofw.BridgingRequestMetadataTransaction{}, // should not be empty
 				"fa": feeAmount,
 			},
 		}
