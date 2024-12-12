@@ -22,7 +22,8 @@ type SendTxStrategyFn func(
 	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int)
 
-type RestartValidatorStrategyFn func(t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
+type RestartValidatorStrategyFn func(
+	t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
 
 type executeBridgingConfig struct {
 	waitForUnexpectedBridges bool
@@ -68,6 +69,8 @@ var (
 	defaultSendTxStrategy SendTxStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
 		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) {
+		t.Helper()
+
 		var wg sync.WaitGroup
 
 		for i, sender := range senders {
@@ -92,6 +95,8 @@ var (
 	}
 	defaultRestartValidatorStrategy RestartValidatorStrategyFn = func(
 		t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig) {
+		t.Helper()
+
 		for _, cfg := range configs {
 			go func() {
 				select {
