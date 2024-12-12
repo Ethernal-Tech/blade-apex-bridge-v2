@@ -1,17 +1,41 @@
 package e2ehelper
 
-import "time"
+import (
+	"context"
+	"fmt"
+	"math/big"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
+	"github.com/stretchr/testify/require"
+)
+
+type RestartValidatorsConfig struct {
+	WaitTime   time.Duration
+	StartIndxs []int
+	StopIndxs  []int
+}
+
+type SendTxStrategyFn func(
+	t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
+	senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int)
+
+type RestartValidatorStrategyFn func(t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig)
 
 type executeBridgingConfig struct {
 	waitForUnexpectedBridges bool
-	stopValidatorAfter       time.Duration
-	stopValidatorIndexes     []int
-	startValidatorAfter      time.Duration
-	startValidatorIndexes    []int
+	restartValidatorsConfigs []RestartValidatorsConfig
+	sendTxStrategy           SendTxStrategyFn
+	restartValidatorStrategy RestartValidatorStrategyFn
 }
 
 func newExecuteBridgingConfig(opts ...ExecuteBridgingOption) *executeBridgingConfig {
-	config := &executeBridgingConfig{}
+	config := &executeBridgingConfig{
+		sendTxStrategy:           defaultSendTxStrategy,
+		restartValidatorStrategy: defaultRestartValidatorStrategy,
+	}
 
 	for _, x := range opts {
 		x(config)
@@ -28,16 +52,61 @@ func WithWaitForUnexpectedBridges(waitForUnexpectedBridges bool) ExecuteBridging
 	}
 }
 
-func WithValidatorStopConfig(stopValidatorAfter time.Duration, stopValidatorIndexes []int) ExecuteBridgingOption {
+func WithRestartValidatorsConfig(restartValidatorsConfigs []RestartValidatorsConfig) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
-		config.stopValidatorAfter = stopValidatorAfter
-		config.stopValidatorIndexes = stopValidatorIndexes
+		config.restartValidatorsConfigs = restartValidatorsConfigs
 	}
 }
 
-func WithValidatorStartConfig(startValidatorAfter time.Duration, startValidatorIndexes []int) ExecuteBridgingOption {
+func WithSendTxStrategy(strategy SendTxStrategyFn) ExecuteBridgingOption {
 	return func(config *executeBridgingConfig) {
-		config.startValidatorAfter = startValidatorAfter
-		config.startValidatorIndexes = startValidatorIndexes
+		config.sendTxStrategy = strategy
 	}
 }
+
+var (
+	defaultSendTxStrategy SendTxStrategyFn = func(
+		t *testing.T, ctx context.Context, apex IApexSystem, chains []srcDstChainPair,
+		senders, receivers []*cardanofw.TestApexUser, sendAmountDfm *big.Int, txCountPerSender int) {
+		var wg sync.WaitGroup
+
+		for i, sender := range senders {
+			for _, chainPair := range chains {
+				wg.Add(1)
+
+				go func(idx int, senderUser *cardanofw.TestApexUser, chainPair srcDstChainPair) {
+					defer wg.Done()
+
+					for j := 0; j < txCountPerSender; j++ {
+						txHash := apex.SubmitBridgingRequest(
+							t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm, receivers...)
+
+						fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
+							idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)
+					}
+				}(i, sender, chainPair)
+			}
+		}
+
+		wg.Wait()
+	}
+	defaultRestartValidatorStrategy RestartValidatorStrategyFn = func(
+		t *testing.T, ctx context.Context, apex IApexSystem, configs []RestartValidatorsConfig) {
+		for _, cfg := range configs {
+			go func() {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(cfg.WaitTime):
+					for _, idx := range cfg.StopIndxs {
+						require.NoError(t, apex.GetValidator(t, idx).Stop())
+					}
+
+					for _, idx := range cfg.StartIndxs {
+						require.NoError(t, apex.GetValidator(t, idx).Start(ctx, false))
+					}
+				}
+			}()
+		}
+	}
+)

@@ -173,7 +173,9 @@ func TestE2E_ApexBridgeWithNexus_NtP_ValidScenarios(t *testing.T) {
 				srcChain: {dstChain},
 			},
 			sendAmountDfm,
-			e2ehelper.WithValidatorStopConfig(stopAfter, []int{validatorStoppingIdx}))
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
 	})
 }
 
@@ -436,7 +438,9 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDPrime: {cardanofw.ChainIDNexus},
 			},
 			sendAmountDfm,
-			e2ehelper.WithValidatorStopConfig(stopAfter, []int{validatorStoppingIdx}))
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
 	})
 
 	t.Run("Both directions sequential", func(t *testing.T) {
@@ -497,8 +501,10 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
 			sendAmountDfm,
-			e2ehelper.WithValidatorStopConfig(stopAfter, []int{validatorStoppingIdx}),
-			e2ehelper.WithWaitForUnexpectedBridges(true))
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes go off in the middle and then one comes back", func(t *testing.T) {
@@ -522,9 +528,11 @@ func TestE2E_ApexBridgeWithNexus_PtNandBoth_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDNexus: {cardanofw.ChainIDPrime},
 			},
 			sendAmountDfm,
-			e2ehelper.WithValidatorStopConfig(stopAfter, []int{validatorStoppingIdx1, validatorStoppingIdx2}),
-			e2ehelper.WithValidatorStartConfig(startAgainAfter, []int{validatorStoppingIdx2}),
-			e2ehelper.WithWaitForUnexpectedBridges(true))
+			e2ehelper.WithWaitForUnexpectedBridges(true),
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
+				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
+			}))
 	})
 }
 

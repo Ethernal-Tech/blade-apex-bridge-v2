@@ -35,12 +35,12 @@ func ExecuteSingleBridging(
 }
 
 func ExecuteBridgingOneByOneWaitOnOtherSide(
-	t *testing.T, ctx context.Context, apex IApexSystem, instances int,
+	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int,
 ) {
 	t.Helper()
 
-	for i := 0; i < instances; i++ {
+	for i := 0; i < txCountPerSender; i++ {
 		prevAmountDfm, err := apex.GetBalance(ctx, user, dstChain)
 		require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func ExecuteBridgingOneByOneWaitOnOtherSide(
 }
 
 func ExecuteBridgingWaitAfterSubmits(
-	t *testing.T, ctx context.Context, apex IApexSystem, instances int,
+	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	user *cardanofw.TestApexUser, srcChain, dstChain string, sendAmountDfm *big.Int,
 ) {
 	t.Helper()
@@ -63,7 +63,7 @@ func ExecuteBridgingWaitAfterSubmits(
 
 	expectedAmountDfm := new(big.Int).Set(prevAmountDfm)
 
-	for i := 0; i < instances; i++ {
+	for i := 0; i < txCountPerSender; i++ {
 		apex.SubmitBridgingRequest(t, ctx, srcChain, dstChain, user, sendAmountDfm, user)
 		expectedAmountDfm = expectedAmountDfm.Add(expectedAmountDfm, sendAmountDfm)
 	}
@@ -73,7 +73,7 @@ func ExecuteBridgingWaitAfterSubmits(
 }
 
 func ExecuteBridging(
-	t *testing.T, ctx context.Context, apex IApexSystem, instances int,
+	t *testing.T, ctx context.Context, apex IApexSystem, txCountPerSender int,
 	senderUsers []*cardanofw.TestApexUser, receiverUsers []*cardanofw.TestApexUser,
 	chains []string, chainsDst map[string][]string,
 	sendAmountDfm *big.Int, options ...ExecuteBridgingOption,
@@ -96,61 +96,17 @@ func ExecuteBridging(
 		}
 	}
 
-	var wg sync.WaitGroup
-
-	for i, sender := range senderUsers {
-		for _, chainPair := range chainPairs {
-			wg.Add(1)
-
-			go func(idx int, senderUser *cardanofw.TestApexUser, chainPair srcDstChainPair) {
-				defer wg.Done()
-
-				for j := 0; j < instances; j++ {
-					txHash := apex.SubmitBridgingRequest(
-						t, ctx, chainPair.srcChain, chainPair.dstChain, senderUser, sendAmountDfm, receiverUsers...)
-
-					fmt.Printf("Sender: %d. run: %d. %s->%s tx sent: %s\n",
-						idx+1, j+1, chainPair.srcChain, chainPair.dstChain, txHash)
-				}
-			}(i, sender, chainPair)
-		}
-	}
-
-	wg.Wait()
+	config.sendTxStrategy(t, ctx, apex, chainPairs, senderUsers, receiverUsers, sendAmountDfm, txCountPerSender)
 
 	// update expectedAmountPerChainDfm
 	for recieverUserIdx := range receiverUsers {
 		for _, chainPair := range chainPairs {
 			tmp := expectedAmountPerChainDfm[recieverUserIdx][chainPair.dstChain]
-			tmp.Add(tmp, new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(instances)*int64(len(senderUsers)))))
+			tmp.Add(tmp, new(big.Int).Mul(sendAmountDfm, big.NewInt(int64(txCountPerSender)*int64(len(senderUsers)))))
 		}
 	}
 
-	if len(config.stopValidatorIndexes) > 0 {
-		go func() {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(config.stopValidatorAfter):
-				for _, idx := range config.stopValidatorIndexes {
-					require.NoError(t, apex.GetValidator(t, idx).Stop())
-				}
-			}
-		}()
-	}
-
-	if len(config.startValidatorIndexes) > 0 {
-		go func() {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(config.startValidatorAfter):
-				for _, idx := range config.startValidatorIndexes {
-					require.NoError(t, apex.GetValidator(t, idx).Start(ctx, false))
-				}
-			}
-		}()
-	}
+	config.restartValidatorStrategy(t, ctx, apex, config.restartValidatorsConfigs)
 
 	var (
 		wgResults sync.WaitGroup

@@ -1001,7 +1001,9 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 			}, new(big.Int).SetUint64(sendAmount),
 			e2ehelper.WithWaitForUnexpectedBridges(true),
-			e2ehelper.WithValidatorStopConfig(stopAfter, []int{validatorStoppingIdx}))
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx}},
+			}))
 	})
 
 	t.Run("Both directions sequential and parallel - two nodes goes off in the middle and then one comes back", func(t *testing.T) {
@@ -1025,8 +1027,10 @@ func TestE2E_ApexBridge_ValidScenarios(t *testing.T) {
 				cardanofw.ChainIDVector: {cardanofw.ChainIDPrime},
 			}, new(big.Int).SetUint64(sendAmount),
 			e2ehelper.WithWaitForUnexpectedBridges(true),
-			e2ehelper.WithValidatorStopConfig(stopAfter, []int{validatorStoppingIdx1, validatorStoppingIdx2}),
-			e2ehelper.WithValidatorStartConfig(startAgainAfter, []int{validatorStoppingIdx1}))
+			e2ehelper.WithRestartValidatorsConfig([]e2ehelper.RestartValidatorsConfig{
+				{WaitTime: stopAfter, StopIndxs: []int{validatorStoppingIdx1, validatorStoppingIdx2}},
+				{WaitTime: startAgainAfter, StartIndxs: []int{validatorStoppingIdx1}},
+			}))
 	})
 
 	t.Run("Both directions sequential and parallel", func(t *testing.T) {
