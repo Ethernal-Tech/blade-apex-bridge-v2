@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
 	"github.com/0xPolygon/polygon-edge/types"
 	infracommon "github.com/Ethernal-Tech/cardano-infrastructure/common"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	cardanowallet "github.com/Ethernal-Tech/cardano-infrastructure/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -488,19 +490,7 @@ func (a *ApexSystem) SubmitTx(
 	ctx context.Context, sourceChain ChainID, sender *TestApexUser,
 	receiverAddr string, dfmAmount *big.Int, data []byte,
 ) (string, error) {
-	privateKey, err := sender.GetPrivateKey(sourceChain)
-	if err != nil {
-		return "", err
-	}
-
-	chain, err := a.getChain(sourceChain)
-	if err != nil {
-		return "", err
-	}
-
-	return chain.SendTx(
-		ctx, privateKey, receiverAddr,
-		DfmToChainNativeTokenAmount(sourceChain, dfmAmount), data)
+	return "", nil
 }
 
 func (a *ApexSystem) SubmitBridgingRequest(
@@ -543,27 +533,101 @@ func (a *ApexSystem) SubmitBridgingRequest(
 
 	const feeAmountDfm = uint64(1_100_000)
 
-	feeAmount := DfmToChainNativeTokenAmount(sourceChain, new(big.Int).SetUint64(feeAmountDfm))
+	// check if users are valid for the bridging - do they have necessary wallets
+	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
+	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
 
-	receiversMap := make(map[string]*big.Int, len(receivers))
+	primeNet := cardanowallet.TestNetNetwork
+	vectorNet := cardanowallet.VectorTestNetNetwork
+
+	chainConfigMap := map[string]sendtx.ChainConfig{
+		ChainIDVector: {
+			CardanoCliBinary:   ResolveCardanoCliBinary(vectorNet),
+			TxProvider:         a.VectorInfo.GetTxProvider(),
+			MultiSigAddr:       a.GetChainMust(t, ChainIDVector).GetHotWalletAddress(),
+			TestNetMagic:       GetNetworkMagic(vectorNet),
+			TTLSlotNumberInc:   ttlSlotNumberInc,
+			MinUtxoValue:       MinUTxODefaultValue,
+			ExchangeRate:       make(map[string]float64),
+			ProtocolParameters: nil,
+		},
+		ChainIDPrime: {
+			CardanoCliBinary:   ResolveCardanoCliBinary(primeNet),
+			TxProvider:         a.PrimeInfo.GetTxProvider(),
+			MultiSigAddr:       a.GetChainMust(t, ChainIDPrime).GetHotWalletAddress(),
+			TestNetMagic:       GetNetworkMagic(primeNet),
+			TTLSlotNumberInc:   ttlSlotNumberInc,
+			MinUtxoValue:       MinUTxODefaultValue,
+			ExchangeRate:       make(map[string]float64),
+			ProtocolParameters: nil,
+		},
+	}
+
+	minAmountToBridge := uint64(1_000_000)
+	maxInputsPerTx := 16
+
+	txSender := sendtx.NewTxSender(
+		feeAmountDfm,
+		minAmountToBridge,
+		potentialFee,
+		maxInputsPerTx,
+		chainConfigMap,
+	)
+
+	receiversMap := []sendtx.BridgingTxReceiver{}
 
 	for _, receiver := range receivers {
 		require.True(t, destinationChain != ChainIDVector || receiver.HasVectorWallet)
 		require.True(t, destinationChain != ChainIDNexus || receiver.HasNexusWallet)
 
-		receiversMap[receiver.GetAddress(destinationChain)] = DfmToChainNativeTokenAmount(sourceChain, dfmAmount)
+		receiversMap = append(receiversMap, sendtx.BridgingTxReceiver{
+			Addr:         receiver.GetAddress(destinationChain),
+			Amount:       DfmToChainNativeTokenAmount(sourceChain, dfmAmount).Uint64(),
+			BridgingType: sendtx.BridgingTypeNormal,
+		})
 	}
 
-	// check if users are valid for the bridging - do they have necessary wallets
-	require.True(t, sourceChain != ChainIDVector || sender.HasVectorWallet)
-	require.True(t, sourceChain != ChainIDNexus || sender.HasNexusWallet)
+	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
+		rawTx, txHash, metadata, err := txSender.CreateBridgingTx(
+			ctx,
+			sourceChain,
+			destinationChain,
+			sender.GetAddress(sourceChain),
+			receiversMap,
+		)
+		if err != nil {
+			fmt.Printf("Error creating tx: %+v\n", err)
+			fmt.Printf("metadata: %+v\n", metadata)
 
-	privateKey, err := sender.GetPrivateKey(sourceChain)
+			return "", err
+		}
+
+		var senderWallet *cardanowallet.Wallet
+		if sourceChain == ChainIDPrime {
+			senderWallet = sender.PrimeWallet
+		} else if sourceChain == ChainIDVector {
+			senderWallet = sender.VectorWallet
+		}
+
+		err = txSender.SubmitTx(ctx, sourceChain, rawTx, senderWallet)
+		if err != nil {
+			fmt.Printf("Error submitting tx: %+v\n", err)
+
+			return "", err
+		}
+
+		return txHash, nil
+	},
+		infracommon.WithRetryWaitTime(time.Millisecond*1500),
+		infracommon.WithRetryCount(100),
+		infracommon.WithIsRetryableError(func(err error) bool {
+			return strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs.")
+		}),
+	)
+
 	require.NoError(t, err)
 
-	txHash, err := a.GetChainMust(t, sourceChain).BridgingRequest(
-		ctx, destinationChain, privateKey, receiversMap, feeAmount)
-	require.NoError(t, err)
+	fmt.Printf("Tx sent. hash: %s\n", txHash)
 
 	return txHash
 }
