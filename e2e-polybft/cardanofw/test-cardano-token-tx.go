@@ -81,6 +81,7 @@ func SendTxWithTokens(
 	if err != nil {
 		return "", err
 	}
+
 	cardanoWalletAddr := caddr.String()
 
 	txSender := sendtx.NewTxSender(
