@@ -77,56 +77,94 @@ func SendTxWithTokens(
 		return "", errors.New("no tokens")
 	}
 
-	txRaw, txHash, err := createNativeTokenTx(
-		ctx, networkType, txProvider, senderWallet, receiverAddr, lovelaceAmount, tokens, metadata)
+	caddr, err := GetAddress(networkType, senderWallet)
+	if err != nil {
+		return "", err
+	}
+	cardanoWalletAddr := caddr.String()
+
+	txSender := sendtx.NewTxSender(
+		bridgingFeeAmount,
+		MinUTxODefaultValue,
+		potentialFee,
+		maxInputsPerTx,
+		map[string]sendtx.ChainConfig{
+			GetNetworkName(networkType): {
+				CardanoCliBinary:    ResolveCardanoCliBinary(networkType),
+				TxProvider:          txProvider,
+				MultiSigAddr:        cardanoWalletAddr,
+				TestNetMagic:        GetNetworkMagic(networkType),
+				TTLSlotNumberInc:    ttlSlotNumberInc,
+				MinUtxoValue:        MinUTxODefaultValue,
+				ExchangeRate:        make(map[string]float64),
+				NativeTokenFullName: tokens[0].TokenName(),
+			},
+		},
+	)
+
+	rawTx, txHash, err := txSender.CreateTxGeneric(
+		ctx,
+		GetNetworkName(networkType),
+		cardanoWalletAddr,
+		receiverAddr,
+		metadata,
+		lovelaceAmount,
+		tokens[0].Amount,
+	)
 	if err != nil {
 		return "", err
 	}
 
-	err = submitTokenTx(ctx, txProvider, txRaw, txHash, receiverAddr, tokens, lovelaceAmount)
+	err = txSender.SubmitTx(ctx, GetNetworkName(networkType), rawTx, senderWallet)
 	if err != nil {
 		return "", err
 	}
 
-	// caddr, err := GetAddress(networkType, senderWallet)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// cardanoWalletAddr := caddr.String()
+	utxo, err := txProvider.GetUtxos(ctx, receiverAddr)
+	if err != nil {
+		return "", err
+	}
 
-	// txSender := sendtx.NewTxSender(
-	// 	bridgingFeeAmount,
-	// 	MinUTxODefaultValue,
-	// 	potentialFee,
-	// 	maxInputsPerTx,
-	// 	map[string]sendtx.ChainConfig{
-	// 		GetNetworkName(networkType): {
-	// 			CardanoCliBinary:    ResolveCardanoCliBinary(networkType),
-	// 			TxProvider:          txProvider,
-	// 			MultiSigAddr:        cardanoWalletAddr,
-	// 			TestNetMagic:        GetNetworkMagic(networkType),
-	// 			TTLSlotNumberInc:    ttlSlotNumberInc,
-	// 			MinUtxoValue:        MinUTxODefaultValue,
-	// 			ExchangeRate:        make(map[string]float64),
-	// 			NativeTokenFullName: tokens[0].TokenName(),
-	// 		},
-	// 	},
-	// )
+	amountsSum := cardanowallet.GetUtxosSum(utxo)
+	expectedAtLeast := make(map[string]uint64)
 
-	// rawTx, txHash, err := txSender.CreateTxGeneric(
-	// 	ctx,
-	// 	GetNetworkName(networkType),
-	// 	cardanoWalletAddr,
-	// 	receiverAddr,
-	// 	metadata,
-	// 	lovelaceAmount,
-	// 	tokens[0].Amount,
-	// )
-	// if err != nil {
-	// 	return "", err
-	// }
+	for _, tokAmount := range tokens {
+		tokenName := tokAmount.TokenName()
+		expectedAtLeast[tokenName] = amountsSum[tokenName] + tokAmount.Amount
+	}
 
-	// return txHash, txSender.SubmitTx(ctx, GetNetworkName(networkType), rawTx, senderWallet)
+	if lovelaceAmount != 0 {
+		expectedAtLeast[cardanowallet.AdaTokenName] = amountsSum[cardanowallet.AdaTokenName] + lovelaceAmount
+	}
+
+	newAmounts, err := common.ExecuteWithRetry(ctx, func(ctx context.Context) (map[string]uint64, error) {
+		utxos, err := txProvider.GetUtxos(ctx, receiverAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		amountsSum := cardanowallet.GetUtxosSum(utxos)
+
+		for _, tokAmount := range tokens {
+			tokenName := tokAmount.TokenName()
+			if amountsSum[tokenName] < expectedAtLeast[tokenName] {
+				return nil, common.ErrRetryTryAgain
+			}
+		}
+
+		if lovelaceAmount != 0 {
+			if amountsSum[cardanowallet.AdaTokenName] < expectedAtLeast[cardanowallet.AdaTokenName] {
+				return nil, common.ErrRetryTryAgain
+			}
+		}
+
+		return amountsSum, nil
+	}, common.WithRetryCount(60))
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Printf("transaction has been included in block. hash = %s, balance = %v\n", txHash, newAmounts)
 
 	return txHash, nil
 }
@@ -163,118 +201,6 @@ func MintTokens(
 	}
 
 	return txHash, nil
-}
-
-func createNativeTokenTx(
-	ctx context.Context,
-	networkType cardanowallet.CardanoNetworkType,
-	txProvider cardanowallet.ITxProvider,
-	senderWallet *cardanowallet.Wallet,
-	receiverAddr string,
-	lovelaceAmount uint64,
-	tokens []cardanowallet.TokenAmount,
-	metadata []byte,
-) ([]byte, string, error) {
-	senderWalletAddr, err := cardanowallet.NewEnterpriseAddress(networkType, senderWallet.VerificationKey)
-	if err != nil {
-		return nil, "", err
-	}
-
-	cardanoCliBinary := ResolveCardanoCliBinary(networkType)
-	networkTestMagic := GetNetworkMagic(networkType)
-
-	builder, err := cardanowallet.NewTxBuilder(cardanoCliBinary)
-	if err != nil {
-		return nil, "", err
-	}
-
-	defer builder.Dispose()
-
-	builder.SetTestNetMagic(networkTestMagic)
-
-	if err := builder.SetProtocolParametersAndTTL(ctx, txProvider, 0); err != nil {
-		return nil, "", err
-	}
-
-	if len(metadata) != 0 {
-		builder.SetMetaData(metadata)
-	}
-
-	desiredAmount := potentialFee + lovelaceAmount + MinUTxODefaultValue
-
-	utxos, err := txProvider.GetUtxos(ctx, senderWalletAddr.String())
-	if err != nil {
-		return nil, "", err
-	}
-
-	inputs, err := sendtx.GetUTXOsForAmounts(
-		utxos,
-		map[string]uint64{cardanowallet.AdaTokenName: desiredAmount},
-		10,
-		1,
-	)
-	if err != nil {
-		return nil, "", err
-	}
-
-	lovelaceInputAmount := inputs.Sum[cardanowallet.AdaTokenName]
-
-	remainingTokens, err := cardanowallet.GetTokensFromSumMap(inputs.Sum)
-	if err != nil {
-		return nil, "", err
-	}
-
-	for _, token := range tokens {
-		for i, inputToken := range remainingTokens {
-			if token.Name == inputToken.Name {
-				remainingTokens[i].Amount -= token.Amount
-
-				break
-			}
-		}
-	}
-
-	builder.AddInputs(inputs.Inputs...)
-	builder.AddOutputs(cardanowallet.TxOutput{
-		Addr:   receiverAddr,
-		Amount: lovelaceAmount,
-		Tokens: tokens,
-	}).AddOutputs(cardanowallet.TxOutput{
-		Addr:   senderWalletAddr.String(),
-		Tokens: remainingTokens,
-	})
-
-	fee, err := builder.CalculateFee(0)
-	if err != nil {
-		return nil, "", err
-	}
-
-	change := lovelaceInputAmount - lovelaceAmount - fee
-	// handle overflow or insufficient amount
-	if change > lovelaceInputAmount || change < MinUTxODefaultValue {
-		return []byte{}, "", fmt.Errorf("insufficient amount: %d", change)
-	}
-
-	builder.UpdateOutputAmount(-1, change)
-
-	builder.SetFee(fee)
-
-	txRaw, txHash, err := builder.Build()
-	if err != nil {
-		return nil, "", err
-	}
-
-	witness, err := cardanowallet.CreateTxWitness(txHash, senderWallet)
-	if err != nil {
-		return nil, "", err
-	}
-
-	txSigned, err := builder.AssembleTxWitnesses(txRaw, [][]byte{witness})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return txSigned, txHash, nil
 }
 
 func createMintTx(

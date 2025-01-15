@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,6 +30,11 @@ const (
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
 	MinUTxODefaultValue = uint64(1_000_000)
+
+	potentialFee      = 250_000
+	ttlSlotNumberInc  = 500
+	bridgingFeeAmount = uint64(1_100_000)
+	maxInputsPerTx    = 16
 )
 
 func ResolveCardanoCliBinary(networkID wallet.CardanoNetworkType) string {
@@ -270,30 +276,6 @@ type BridgingRequestMetadataTransaction struct {
 	Amount  uint64   `cbor:"m" json:"m"`
 }
 
-func CreateCardanoBridgingMetaData(
-	sender string, receivers map[string]uint64, destinationChain ChainID, feeAmount uint64,
-) ([]byte, error) {
-	var transactions = make([]BridgingRequestMetadataTransaction, 0, len(receivers))
-	for addr, amount := range receivers {
-		transactions = append(transactions, BridgingRequestMetadataTransaction{
-			Address: SplitString(addr, 40),
-			Amount:  amount,
-		})
-	}
-
-	metadata := map[string]interface{}{
-		"1": map[string]interface{}{
-			"t":  "bridge",
-			"d":  destinationChain,
-			"s":  SplitString(sender, 40),
-			"tx": transactions,
-			"fa": feeAmount,
-		},
-	}
-
-	return json.Marshal(metadata)
-}
-
 func tryResolveFromEnv(env, name string) string {
 	if bin := os.Getenv(env); bin != "" {
 		return bin
@@ -439,4 +421,33 @@ func WaitForInvalidState(
 		ctx, apex, chainID, txHash, apiKey, []string{BridgingRequestStatusInvalidRequest}, 300)
 	require.NoError(t, err)
 	require.Equal(t, BridgingRequestStatusInvalidRequest, state)
+}
+
+func GetGenesisWalletFromCluster(
+	dirPath string,
+	keyID uint,
+) (*wallet.Wallet, error) {
+	keyFileName := strings.Join([]string{"utxo", fmt.Sprint(keyID)}, "")
+
+	sKey, err := wallet.NewKey(filepath.Join(dirPath, "utxo-keys", fmt.Sprintf("%s.skey", keyFileName)))
+	if err != nil {
+		return nil, err
+	}
+
+	sKeyBytes, err := sKey.GetKeyBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	vKey, err := wallet.NewKey(filepath.Join(dirPath, "utxo-keys", fmt.Sprintf("%s.vkey", keyFileName)))
+	if err != nil {
+		return nil, err
+	}
+
+	vKeyBytes, err := vKey.GetKeyBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	return wallet.NewWallet(vKeyBytes, sKeyBytes), nil
 }
