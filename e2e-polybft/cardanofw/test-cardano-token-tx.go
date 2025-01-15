@@ -34,7 +34,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 	cardanoCliBinary := cardanowallet.ResolveCardanoCliBinary(networkType)
 
 	pid, _ := cardanowallet.NewCliUtils(cardanoCliBinary).GetPolicyID(policy)
-	mintToken := cardanowallet.NewTokenAmount(pid, defaultTokenName, defaultTokenMintAmount)
+	mintToken := cardanowallet.NewTokenAmount(cardanowallet.NewToken(pid, defaultTokenName), defaultTokenMintAmount)
 
 	txHash, err := MintTokens(
 		ctx, networkType, txProvider, minterWallet, lovelaceFundAmount,
@@ -48,7 +48,7 @@ func FundUserWithToken(ctx context.Context, chain ChainID,
 
 	userToFundAddr := userToFund.GetAddress(chain)
 
-	fundToken := cardanowallet.NewTokenAmount(pid, defaultTokenName, tokenFundAmount)
+	fundToken := cardanowallet.NewTokenAmount(cardanowallet.NewToken(pid, defaultTokenName), tokenFundAmount)
 
 	txHash, err = SendTxWithTokens(
 		ctx, networkType, txProvider, minterWallet, userToFundAddr, lovelaceFundAmount,
@@ -91,14 +91,14 @@ func SendTxWithTokens(
 		maxInputsPerTx,
 		map[string]sendtx.ChainConfig{
 			GetNetworkName(networkType): {
-				CardanoCliBinary:    ResolveCardanoCliBinary(networkType),
-				TxProvider:          txProvider,
-				MultiSigAddr:        cardanoWalletAddr,
-				TestNetMagic:        GetNetworkMagic(networkType),
-				TTLSlotNumberInc:    ttlSlotNumberInc,
-				MinUtxoValue:        MinUTxODefaultValue,
-				ExchangeRate:        make(map[string]float64),
-				NativeTokenFullName: tokens[0].TokenName(),
+				CardanoCliBinary: ResolveCardanoCliBinary(networkType),
+				TxProvider:       txProvider,
+				MultiSigAddr:     cardanoWalletAddr,
+				TestNetMagic:     GetNetworkMagic(networkType),
+				TTLSlotNumberInc: ttlSlotNumberInc,
+				MinUtxoValue:     MinUTxODefaultValue,
+				ExchangeRate:     make(map[string]float64),
+				NativeToken:      tokens[0].Token,
 			},
 		},
 	)
