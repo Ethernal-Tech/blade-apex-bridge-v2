@@ -564,6 +564,26 @@ func (a *ApexSystem) SubmitBridgingRequest(
 		ctx, destinationChain, privateKey, receiversMap, feeAmount)
 	require.NoError(t, err)
 
+	var txProvider cardanowallet.ITxProvider
+	if sourceChain == ChainIDPrime {
+		txProvider = a.VectorInfo.GetTxProvider()
+	} else {
+		txProvider = a.PrimeInfo.GetTxProvider()
+	}
+
+	prevAmount := uint64(0)
+
+	for receiverAddress := range receiversMap {
+		utxos, err := txProvider.GetUtxos(ctx, receiverAddress)
+		require.NoError(t, err)
+
+		prevAmount = cardanowallet.GetUtxosSum(utxos)[cardanowallet.AdaTokenName]
+	}
+
+	err = a.WaitForExactAmount(ctx, receivers[0], destinationChain,
+		new(big.Int).SetUint64(prevAmount+dfmAmount.Uint64()), 100, time.Second*10)
+	require.NoError(t, err)
+
 	return txHash
 }
 

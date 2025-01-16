@@ -345,38 +345,24 @@ func (ec *TestCardanoChain) BridgingRequest(
 		})
 	}
 
-	txHash, err := infracommon.ExecuteWithRetry(ctx, func(ctx context.Context) (string, error) {
-		rawTx, txHash, metadata, err := txSender.CreateBridgingTx(
-			ctx,
-			sourceChain,
-			destChainID,
-			senderAddr.String(),
-			receiversMap,
-		)
-		if err != nil {
-			fmt.Printf("Error creating tx: %+v\n", err)
-			fmt.Printf("metadata: %+v\n", metadata)
-
-			return "", err
-		}
-
-		err = txSender.SubmitTx(ctx, sourceChain, rawTx, wallet)
-		if err != nil {
-			fmt.Printf("Error submitting tx: %+v\n", err)
-
-			return "", err
-		}
-
-		return txHash, nil
-	},
-		infracommon.WithRetryWaitTime(time.Millisecond*1500),
-		infracommon.WithRetryCount(100),
-		infracommon.WithIsRetryableError(func(err error) bool {
-			return strings.Contains(err.Error(), "The transaction contains unknown UTxO references as inputs.")
-		}),
+	rawTx, txHash, metadata, err := txSender.CreateBridgingTx(
+		ctx,
+		sourceChain,
+		destChainID,
+		senderAddr.String(),
+		receiversMap,
 	)
-
 	if err != nil {
+		fmt.Printf("Error creating tx: %+v\n", err)
+		fmt.Printf("metadata: %+v\n", metadata)
+
+		return "", err
+	}
+
+	err = txSender.SubmitTx(ctx, sourceChain, rawTx, wallet)
+	if err != nil {
+		fmt.Printf("Error submitting tx: %+v\n", err)
+
 		return "", err
 	}
 
