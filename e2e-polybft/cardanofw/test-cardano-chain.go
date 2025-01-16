@@ -377,7 +377,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 	)
 
 	if err != nil {
-		fmt.Printf("Error submitting tx: %+v\n", err)
+		return "", err
 	}
 
 	return txHash, nil
@@ -437,16 +437,11 @@ func (ec *TestCardanoChain) SendTx(
 		0,
 	)
 	if err != nil {
-		fmt.Printf("Error creating tx: %v\n", err)
-
 		return "", err
 	}
 
 	err = txSender.SubmitTx(ctx, GetNetworkName(networkType), rawTx, wallet)
-
 	if err != nil {
-		fmt.Printf("Error submitting tx: %v\n", err)
-
 		return "", err
 	}
 
