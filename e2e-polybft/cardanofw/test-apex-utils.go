@@ -271,11 +271,6 @@ func GetTestNetMagicArgs(testnetMagic uint) []string {
 	return []string{"--testnet-magic", strconv.FormatUint(uint64(testnetMagic), 10)}
 }
 
-type BridgingRequestMetadataTransaction struct {
-	Address []string `cbor:"a" json:"a"`
-	Amount  uint64   `cbor:"m" json:"m"`
-}
-
 func tryResolveFromEnv(env, name string) string {
 	if bin := os.Getenv(env); bin != "" {
 		return bin

@@ -23,6 +23,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Ethernal-Tech/cardano-infrastructure/sendtx"
 	"github.com/Ethernal-Tech/ethgo"
 )
 
@@ -259,6 +260,9 @@ func (ec *TestEVMChain) PopulateApexSystem(apexSystem *ApexSystem) {
 	}
 }
 
+func (ec *TestEVMChain) UpdateTxSendChainConfiguration(_ map[string]sendtx.ChainConfig) {
+}
+
 func (ec *TestEVMChain) ChainID() string {
 	return ec.config.ChainID
 }
@@ -270,6 +274,16 @@ func (ec *TestEVMChain) GetAddressBalance(ctx context.Context, addr string) (*bi
 	}
 
 	return amount, err
+}
+
+func (ec *TestEVMChain) CreateMetadata(
+	senderAddr string,
+	dstChainID string,
+	receivers []sendtx.BridgingTxReceiver,
+	bridgingFee uint64,
+	exchangeRate sendtx.ExchangeRate,
+) ([]byte, error) {
+	return nil, nil
 }
 
 func (ec *TestEVMChain) BridgingRequest(

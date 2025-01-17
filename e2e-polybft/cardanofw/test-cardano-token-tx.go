@@ -164,7 +164,7 @@ func createNativeTokenTx(
 
 	desiredAmount := potentialFee + lovelaceAmount + MinUTxODefaultValue
 
-	utxos, err := txProvider.GetUtxos(ctx, receiverAddr)
+	utxos, err := txProvider.GetUtxos(ctx, senderWalletAddr.String())
 	if err != nil {
 		return nil, "", err
 	}
