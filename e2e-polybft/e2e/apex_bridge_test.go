@@ -1666,7 +1666,6 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		for i := 0; i < instances; i++ {
 			wg.Add(2)
 
-			//nolint:dupl
 			go func(idx int) {
 				defer wg.Done()
 
