@@ -224,7 +224,7 @@ func (a *ApexSystem) FinishConfiguring() error {
 			MultiSigAddr:         a.VectorInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.VectorConfig.NetworkType),
 			TTLSlotNumberInc:     a.Config.VectorConfig.TTLInc,
-			MinUtxoValue:         MinUTxODefaultValue,
+			MinUtxoValue:         minUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.VectorConfig.MinBridgingFee,
 			NativeTokens:         a.Config.VectorConfig.NativeTokens,
 			PotentialFee:         potentialFee,
@@ -235,7 +235,7 @@ func (a *ApexSystem) FinishConfiguring() error {
 			MultiSigAddr:         a.PrimeInfo.MultisigAddr,
 			TestNetMagic:         GetNetworkMagic(a.Config.PrimeConfig.NetworkType),
 			TTLSlotNumberInc:     a.Config.PrimeConfig.TTLInc,
-			MinUtxoValue:         MinUTxODefaultValue,
+			MinUtxoValue:         minUTxODefaultValue,
 			MinBridgingFeeAmount: a.Config.PrimeConfig.MinBridgingFee,
 			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
 			PotentialFee:         potentialFee,
@@ -243,7 +243,7 @@ func (a *ApexSystem) FinishConfiguring() error {
 		ChainIDNexus: {},
 	}
 
-	// after contracts have been initialized populate all the needed things into apex object
+	// set txSenderChainConfigs configuration for each chain
 	for _, chain := range a.chains {
 		chain.UpdateTxSendChainConfiguration(txSenderChainConfigs)
 	}

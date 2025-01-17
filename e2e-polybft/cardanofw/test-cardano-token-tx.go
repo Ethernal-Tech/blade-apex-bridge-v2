@@ -162,7 +162,7 @@ func createNativeTokenTx(
 		builder.SetMetaData(metadata)
 	}
 
-	desiredAmount := potentialFee + lovelaceAmount + MinUTxODefaultValue
+	desiredAmount := potentialFee + lovelaceAmount + minUTxODefaultValue
 
 	utxos, err := txProvider.GetUtxos(ctx, senderWalletAddr.String())
 	if err != nil {
@@ -213,7 +213,7 @@ func createNativeTokenTx(
 
 	change := lovelaceInputAmount - lovelaceAmount - fee
 	// handle overflow or insufficient amount
-	if change > lovelaceInputAmount || change < MinUTxODefaultValue {
+	if change > lovelaceInputAmount || change < minUTxODefaultValue {
 		return []byte{}, "", fmt.Errorf("insufficient amount: %d", change)
 	}
 
@@ -269,7 +269,7 @@ func createMintTx(
 		return nil, "", err
 	}
 
-	desiredAmount := potentialFee + lovelaceAmount + MinUTxODefaultValue
+	desiredAmount := potentialFee + lovelaceAmount + minUTxODefaultValue
 
 	utxos, err := txProvider.GetUtxos(ctx, walletAddr.String())
 	if err != nil {
@@ -309,7 +309,7 @@ func createMintTx(
 
 	change := lovelaceInputAmount - lovelaceAmount - fee
 	// handle overflow or insufficient amount
-	if change > lovelaceInputAmount || change < MinUTxODefaultValue {
+	if change > lovelaceInputAmount || change < minUTxODefaultValue {
 		return []byte{}, "", fmt.Errorf("insufficient amount: %d", change)
 	}
 
