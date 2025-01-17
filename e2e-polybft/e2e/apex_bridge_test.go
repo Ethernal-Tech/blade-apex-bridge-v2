@@ -641,23 +641,25 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 		feeAmount := uint64(1_100_000)
 
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:   user.GetAddress(cardanofw.ChainIDVector),
-				Amount: sendAmount,
-			},
-		}
-
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 			"dummy", cardanofw.ChainIDVector,
-			receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+			[]sendtx.BridgingTxReceiver{
+				{
+					Addr:   user.GetAddress(cardanofw.ChainIDVector),
+					Amount: sendAmount,
+				},
+			}, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
+
+		// remove this after we make correct validation on oracle!
+		bridgingRequestMetadata := bytes.Replace(metadata,
+			[]byte("[\"dummy\"]"), []byte("\"\""), 1)
 
 		pKey := hex.EncodeToString(user.PrimeWallet.SigningKey)
 
 		txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).
 			SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-				new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+				new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)

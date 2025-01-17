@@ -317,7 +317,11 @@ func (ec *TestCardanoChain) CreateMetadata(
 }
 
 func (ec *TestCardanoChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
+	ctx context.Context,
+	destChainID ChainID,
+	privateKey string,
+	receivers map[string]*big.Int,
+	feeAmount *big.Int,
 ) (string, error) {
 	privateKeyBytes, err := hex.DecodeString(privateKey)
 	if err != nil {
@@ -339,7 +343,7 @@ func (ec *TestCardanoChain) BridgingRequest(
 		receiversMap = append(receiversMap, sendtx.BridgingTxReceiver{
 			Addr:         receiverAddress,
 			Amount:       DfmToChainNativeTokenAmount(sourceChain, receiverAmount).Uint64(),
-			BridgingType: sendtx.BridgingTypeNormal, // TODO: this should be sent as a parameter
+			BridgingType: sendtx.BridgingTypeNormal,
 		})
 	}
 
@@ -360,7 +364,11 @@ func (ec *TestCardanoChain) BridgingRequest(
 }
 
 func (ec *TestCardanoChain) SendTx(
-	ctx context.Context, privateKey string, receiverAddr string, amount *big.Int, metadata []byte,
+	ctx context.Context,
+	privateKey string,
+	receiverAddr string,
+	amount *big.Int,
+	metadata []byte,
 ) (string, error) {
 	privateKeyBytes, err := hex.DecodeString(privateKey)
 	if err != nil {
@@ -382,8 +390,8 @@ func (ec *TestCardanoChain) SendTx(
 		receiverAddr,
 		metadata,
 		amount.Uint64(),
-		0,  // TODO: this should be parameter amountTokens *big.Int,
-		"", // TODO: this should be parameter amountTokens *big.Int,
+		0,
+		"",
 	)
 	if err != nil {
 		return "", err

@@ -685,9 +685,13 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 			}, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
+		// remove this after we make correct validation on oracle!
+		bridgingRequestMetadata := bytes.Replace(metadata,
+			[]byte("[\"dummy\"]"), []byte("\"\""), 1)
+
 		txHash, err := apex.SubmitTx(
 			ctx, srcChain, user, receiverAddr,
-			sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), metadata)
+			sendAmountDfm.Add(sendAmountDfm, new(big.Int).SetUint64(feeAmount)), bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, srcChain, txHash, apiKey)
