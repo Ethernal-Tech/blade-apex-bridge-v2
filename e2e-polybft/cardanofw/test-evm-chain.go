@@ -287,7 +287,12 @@ func (ec *TestEVMChain) CreateMetadata(
 }
 
 func (ec *TestEVMChain) BridgingRequest(
-	ctx context.Context, destChainID ChainID, privateKey string, receivers map[string]*big.Int, feeAmount *big.Int,
+	ctx context.Context,
+	destChainID ChainID,
+	privateKey string,
+	receivers map[string]*big.Int,
+	feeAmount *big.Int,
+	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	params := []string{
 		"sendtx",

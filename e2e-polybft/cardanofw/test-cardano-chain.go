@@ -318,10 +318,11 @@ func (ec *TestCardanoChain) CreateMetadata(
 
 func (ec *TestCardanoChain) BridgingRequest(
 	ctx context.Context,
-	destChainID ChainID,
+	dstChainID ChainID,
 	privateKey string,
-	receivers map[string]*big.Int,
+	receiversMap map[string]*big.Int,
 	feeAmount *big.Int,
+	bridgingTypes ...sendtx.BridgingType,
 ) (string, error) {
 	privateKeyBytes, err := hex.DecodeString(privateKey)
 	if err != nil {
@@ -330,29 +331,34 @@ func (ec *TestCardanoChain) BridgingRequest(
 
 	wallet := infrawallet.NewWallet(
 		infrawallet.GetVerificationKeyFromSigningKey(privateKeyBytes), privateKeyBytes)
-	sourceChain := GetNetworkName(ec.config.NetworkType)
+	srcChainID := GetNetworkName(ec.config.NetworkType)
 
 	walletAddr, err := GetAddress(ec.config.NetworkType, wallet)
 	if err != nil {
 		return "", err
 	}
 
-	receiversMap := make([]sendtx.BridgingTxReceiver, 0, len(receivers))
+	receivers := make([]sendtx.BridgingTxReceiver, 0, len(receiversMap))
 
-	for receiverAddress, receiverAmount := range receivers {
-		receiversMap = append(receiversMap, sendtx.BridgingTxReceiver{
+	for receiverAddress, receiverAmount := range receiversMap {
+		bridgingType := sendtx.BridgingTypeNormal
+		if idx := len(receivers); idx < len(bridgingTypes) {
+			bridgingType = bridgingTypes[idx]
+		}
+
+		receivers = append(receivers, sendtx.BridgingTxReceiver{
 			Addr:         receiverAddress,
-			Amount:       DfmToChainNativeTokenAmount(sourceChain, receiverAmount).Uint64(),
-			BridgingType: sendtx.BridgingTypeNormal,
+			Amount:       DfmToChainNativeTokenAmount(srcChainID, receiverAmount).Uint64(),
+			BridgingType: bridgingType,
 		})
 	}
 
 	rawTx, txHash, _, err := ec.txSender.CreateBridgingTx(
 		ctx,
-		sourceChain,
-		destChainID,
+		srcChainID,
+		dstChainID,
 		walletAddr.String(),
-		receiversMap,
+		receivers,
 		bridgingFeeAmount,
 		sendtx.NewExchangeRate(),
 	)

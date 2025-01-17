@@ -480,24 +480,20 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			sendAmount := uint64(1_000_000)
 			feeAmount := uint64(1_100_000)
 
-			receivers := []sendtx.BridgingTxReceiver{
-				{
-					Addr:         apex.Users[i].GetAddress(cardanofw.ChainIDVector),
-					Amount:       sendAmount * 10,
-					BridgingType: sendtx.BridgingTypeNormal,
-				},
-			}
-
 			metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 				apex.Users[i].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-				receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+				[]sendtx.BridgingTxReceiver{
+					{
+						Addr:         apex.Users[i].GetAddress(cardanofw.ChainIDVector),
+						Amount:       sendAmount * 10,
+						BridgingType: sendtx.BridgingTypeNormal,
+					},
+				}, bridgingFeeAmount, sendtx.NewExchangeRate())
 			require.NoError(t, err)
 
-			pKey := hex.EncodeToString(apex.Users[i].PrimeWallet.SigningKey)
-
-			txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).
-				SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-					new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+			txHash, err := apex.SubmitTx(
+				ctx, cardanofw.ChainIDPrime, apex.Users[i],
+				apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 			require.NoError(t, err)
 
 			cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
@@ -514,35 +510,29 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		var wg sync.WaitGroup
 
 		for i := 0; i < instances; i++ {
-			idx := i
-
-			receivers := []sendtx.BridgingTxReceiver{
-				{
-					Addr:         apex.Users[idx].GetAddress(cardanofw.ChainIDVector),
-					Amount:       sendAmount * 10,
-					BridgingType: sendtx.BridgingTypeNormal,
-				},
-			}
-
 			wg.Add(1)
 
-			go func() {
+			go func(idx int) {
 				defer wg.Done()
 
 				testUser := apex.Users[idx]
 
 				metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 					testUser.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-					receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+					[]sendtx.BridgingTxReceiver{
+						{
+							Addr:         apex.Users[idx].GetAddress(cardanofw.ChainIDVector),
+							Amount:       sendAmount * 10,
+							BridgingType: sendtx.BridgingTypeNormal,
+						},
+					}, bridgingFeeAmount, sendtx.NewExchangeRate())
 				require.NoError(t, err)
 
-				pKey := hex.EncodeToString(testUser.PrimeWallet.SigningKey)
-
-				txHashes[idx], err = apex.GetChainMust(t, cardanofw.ChainIDPrime).
-					SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+				txHashes[idx], err = apex.SubmitTx(
+					ctx, cardanofw.ChainIDPrime, testUser,
+					apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 				require.NoError(t, err)
-			}()
+			}(i)
 		}
 
 		wg.Wait()
@@ -572,11 +562,9 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		// Send only half bytes of metadata making it invalid
 		metadata = metadata[0 : len(metadata)/2]
 
-		pKey := hex.EncodeToString(user.PrimeWallet.SigningKey)
-
-		_, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).
-			SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-				new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+		_, err = apex.SubmitTx(
+			ctx, cardanofw.ChainIDPrime, user,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 		require.Error(t, err)
 	})
 
@@ -596,11 +584,9 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 
 		bridgingRequestMetadata := bytes.Replace(metadata, []byte("bridge"), []byte("xxxxx"), 1)
 
-		pKey := hex.EncodeToString(user.PrimeWallet.SigningKey)
-
-		txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).
-			SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-				new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		txHash, err := apex.SubmitTx(
+			ctx, cardanofw.ChainIDPrime, user,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		_, err = cardanofw.WaitForRequestStates(ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey, nil, 60)
@@ -612,26 +598,21 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		sendAmount := uint64(1_000_000)
 		feeAmount := uint64(1_100_000)
 
-		receivers := []sendtx.BridgingTxReceiver{
-			{
-				Addr:   user.GetAddress(cardanofw.ChainIDVector),
-				Amount: sendAmount,
-			},
-		}
-
 		metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 			user.GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-			receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+			[]sendtx.BridgingTxReceiver{
+				{
+					Addr:   user.GetAddress(cardanofw.ChainIDVector),
+					Amount: sendAmount,
+				},
+			}, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
 		bridgingRequestMetadata := bytes.Replace(metadata,
 			[]byte(fmt.Sprintf("\"%s\"", cardanofw.ChainIDVector)), []byte("\"hector\""), 1)
 
-		pKey := hex.EncodeToString(user.PrimeWallet.SigningKey)
-
-		txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).
-			SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-				new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user,
+			apex.PrimeInfo.MultisigAddr, new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
@@ -655,11 +636,8 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 		bridgingRequestMetadata := bytes.Replace(metadata,
 			[]byte("[\"dummy\"]"), []byte("\"\""), 1)
 
-		pKey := hex.EncodeToString(user.PrimeWallet.SigningKey)
-
-		txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).
-			SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-				new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
+			new(big.Int).SetUint64(sendAmount+feeAmount), bridgingRequestMetadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
@@ -673,11 +651,8 @@ func TestE2E_ApexBridge_InvalidScenarios(t *testing.T) {
 			[]sendtx.BridgingTxReceiver{}, bridgingFeeAmount, sendtx.NewExchangeRate())
 		require.NoError(t, err)
 
-		pKey := hex.EncodeToString(user.PrimeWallet.SigningKey)
-
-		txHash, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).
-			SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-				new(big.Int).SetUint64(sendAmount), metadata)
+		txHash, err := apex.SubmitTx(ctx, cardanofw.ChainIDPrime, user, apex.PrimeInfo.MultisigAddr,
+			new(big.Int).SetUint64(sendAmount), metadata)
 		require.NoError(t, err)
 
 		cardanofw.WaitForInvalidState(t, ctx, apex, cardanofw.ChainIDPrime, txHash, apiKey)
@@ -1571,24 +1546,19 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 
-					receivers := []sendtx.BridgingTxReceiver{
-						{
-							Addr:         user.GetAddress(cardanofw.ChainIDVector),
-							Amount:       sendAmount * 10,
-							BridgingType: sendtx.BridgingTypeNormal,
-						},
-					}
-
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-						receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+						[]sendtx.BridgingTxReceiver{
+							{
+								Addr:         user.GetAddress(cardanofw.ChainIDVector),
+								Amount:       sendAmount * 10,
+								BridgingType: sendtx.BridgingTypeNormal,
+							},
+						}, bridgingFeeAmount, sendtx.NewExchangeRate())
 					require.NoError(t, err)
 
-					pKey := hex.EncodeToString(apex.Users[idx].PrimeWallet.SigningKey)
-
-					_, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).
-						SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-							new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
+						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1643,24 +1613,19 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 
-					receivers := []sendtx.BridgingTxReceiver{
-						{
-							Addr:         user.GetAddress(cardanofw.ChainIDVector),
-							Amount:       sendAmount * 10,
-							BridgingType: sendtx.BridgingTypeNormal,
-						},
-					}
-
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDPrime).CreateMetadata(
 						apex.Users[idx].GetAddress(cardanofw.ChainIDPrime), cardanofw.ChainIDVector,
-						receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+						[]sendtx.BridgingTxReceiver{
+							{
+								Addr:         user.GetAddress(cardanofw.ChainIDVector),
+								Amount:       sendAmount * 10,
+								BridgingType: sendtx.BridgingTypeNormal,
+							},
+						}, bridgingFeeAmount, sendtx.NewExchangeRate())
 					require.NoError(t, err)
 
-					pKey := hex.EncodeToString(apex.Users[idx].PrimeWallet.SigningKey)
-
-					_, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).
-						SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-							new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
+						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1731,11 +1696,8 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 						receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
 					require.NoError(t, err)
 
-					pKey := hex.EncodeToString(apex.Users[idx].PrimeWallet.SigningKey)
-
-					_, err = apex.GetChainMust(t, cardanofw.ChainIDPrime).
-						SendTx(ctx, pKey, apex.PrimeInfo.MultisigAddr,
-							new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDPrime, apex.Users[idx], apex.PrimeInfo.MultisigAddr,
+						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 					require.NoError(t, err)
 				}
 			}(i)
@@ -1756,24 +1718,19 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 				} else {
 					feeAmount := uint64(1_100_000)
 
-					receivers := []sendtx.BridgingTxReceiver{
-						{
-							Addr:         user.GetAddress(cardanofw.ChainIDPrime),
-							Amount:       sendAmount * 10,
-							BridgingType: sendtx.BridgingTypeNormal,
-						},
-					}
-
 					metadata, err := apex.GetChainMust(t, cardanofw.ChainIDVector).CreateMetadata(
 						apex.Users[idx].GetAddress(cardanofw.ChainIDVector), cardanofw.ChainIDPrime,
-						receivers, bridgingFeeAmount, sendtx.NewExchangeRate())
+						[]sendtx.BridgingTxReceiver{
+							{
+								Addr:         user.GetAddress(cardanofw.ChainIDPrime),
+								Amount:       sendAmount * 10,
+								BridgingType: sendtx.BridgingTypeNormal,
+							},
+						}, bridgingFeeAmount, sendtx.NewExchangeRate())
 					require.NoError(t, err)
 
-					pKey := hex.EncodeToString(apex.Users[idx].VectorWallet.SigningKey)
-
-					_, err = apex.GetChainMust(t, cardanofw.ChainIDVector).
-						SendTx(ctx, pKey, apex.VectorInfo.MultisigAddr,
-							new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
+					_, err = apex.SubmitTx(ctx, cardanofw.ChainIDVector, apex.Users[idx], apex.VectorInfo.MultisigAddr,
+						new(big.Int).SetUint64(sendAmount+feeAmount), metadata)
 					require.NoError(t, err)
 				}
 			}(i)
