@@ -1483,7 +1483,6 @@ func TestE2E_ApexBridge_ValidScenarios_BigTests(t *testing.T) {
 		userCnt = 1010
 
 		potentialFee      = 250_000
-		ttlSlotNumberInc  = 500
 		bridgingFeeAmount = uint64(1_100_000)
 		maxInputsPerTx    = 16
 	)

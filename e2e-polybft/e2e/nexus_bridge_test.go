@@ -544,7 +544,6 @@ func TestE2E_ApexBridgeWithNexus_PtN_InvalidScenarios(t *testing.T) {
 		userCnt = 15
 
 		potentialFee      = 250_000
-		ttlSlotNumberInc  = 500
 		bridgingFeeAmount = uint64(1_100_000)
 		maxInputsPerTx    = 16
 	)
@@ -725,7 +724,6 @@ func TestE2E_ApexBridgeWithNexus_ValidScenarios_BigTest(t *testing.T) {
 		userCnt = 1010
 
 		potentialFee      = 250_000
-		ttlSlotNumberInc  = 500
 		bridgingFeeAmount = uint64(1_100_000)
 		maxInputsPerTx    = 16
 	)

@@ -30,6 +30,7 @@ const (
 	BridgingRequestStatusInvalidRequest = "InvalidRequest"
 
 	minUTxODefaultValue = uint64(1_000_000)
+	ttlSlotNumberInc    = 500
 	potentialFee        = 500_000
 	bridgingFeeAmount   = uint64(1_100_000)
 )
