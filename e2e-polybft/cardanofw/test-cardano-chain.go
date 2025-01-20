@@ -52,6 +52,7 @@ func NewPrimeChainConfig() *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
 
@@ -65,6 +66,7 @@ func NewVectorChainConfig(isEnabled bool) *TestCardanoChainConfig {
 		PremineAmount:          defaultPremineAmount,
 		FundAmount:             defaultFundTokenAmount,
 		FundFeeAmount:          defaultFundTokenAmount,
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
 

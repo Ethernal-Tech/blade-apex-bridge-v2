@@ -46,6 +46,7 @@ type TestEVMChainConfig struct {
 	StartingPort           int64
 	ApexConfig             uint8
 	BurnContractInfo       *polybft.BurnContractInfo
+	MinBridgingFee         uint64
 }
 
 func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
@@ -63,6 +64,7 @@ func NewNexusChainConfig(isEnabled bool) *TestEVMChainConfig {
 		PremineAmount:          ethgo.Ether(defaultPremineEthTokenAmount),
 		FundAmount:             ethgo.Ether(defaultFundEthTokenAmount),
 		FundRelayerAmount:      ethgo.Ether(defaultFundRelayerEthTokenAmount),
+		MinBridgingFee:         defaultMinBridgingFeeAmount,
 	}
 }
 

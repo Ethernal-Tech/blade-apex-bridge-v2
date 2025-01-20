@@ -240,7 +240,9 @@ func (a *ApexSystem) FinishConfiguring() error {
 			NativeTokens:         a.Config.PrimeConfig.NativeTokens,
 			PotentialFee:         potentialFee,
 		},
-		ChainIDNexus: {},
+		ChainIDNexus: {
+			MinBridgingFeeAmount: a.Config.NexusConfig.MinBridgingFee,
+		},
 	}
 
 	// set txSenderChainConfigs configuration for each chain
